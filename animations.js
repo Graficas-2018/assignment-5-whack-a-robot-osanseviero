@@ -19,6 +19,17 @@ var score = 0;
 
 var animation = "attack";
 
+// https://javascript.info/async-await
+// Async await so it does not block animation
+async function async_await() {
+  let promise = new Promise((resolve, reject) => {
+    setTimeout(() => resolve("done!"), duration)
+  });
+
+  let result = await promise; // wait till the promise resolves (*)
+  return result
+}
+
 function createDeadAnimation() {
     let animator = new KF.KeyFrameAnimator;
     animator.init({ 
@@ -46,7 +57,10 @@ function createDeadAnimation() {
         duration:duration
     });
     animator.start();
+    async_await().then(function() {
+        scene.remove(robot_idle);
 
+    }); 
 }
 
 function loadFBX() {
@@ -195,9 +209,9 @@ function onDocumentMouseDown(event) {
     mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 
     // find intersections
-    raycaster.setFromCamera( mouse, camera );
+    raycaster.setFromCamera(mouse, camera);
     var intersects = raycaster.intersectObjects(scene.children, true);
-
+    console.log(intersects)
     if ( intersects.length > 0 ) {
         CLICKED = intersects[ 0 ].object;
         if(CLICKED.name === "Robot1") {
