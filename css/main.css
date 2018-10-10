@@ -26,3 +26,11 @@ body {
 	color: #8f8829;
 	background-color: black;
 }
+
+#timer {
+	position:absolute;
+	left:200px;
+	top:20px;
+	color: #8f8829;
+	background-color: black;
+}

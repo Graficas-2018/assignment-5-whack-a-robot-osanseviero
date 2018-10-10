@@ -1,33 +1,52 @@
-var renderer = null, 
-scene = null, 
-camera = null,
-root = null,
-robot_idle = null,
-group = null,
-orbitControls = null;
+var renderer = null;
+var scene = null;
+var camera = null;
+var root = null;
+var robot = null;
 
 var robot_mixer = {};
-var deadAnimator;
 var morphs = [];
 var mouse = new THREE.Vector2(), INTERSECTED, CLICKED;
 var raycaster;
 
 var duration = 1000; // ms
 var currentTime = Date.now();
+var now = null;
 
 var score = 0;
+var timer = 0;
 
 var animation = "attack";
+var canvas;
+
+var mapUrl = "../images/checker_large.gif";
+var SHADOW_MAP_WIDTH = 2048, SHADOW_MAP_HEIGHT = 2048;
 
 // https://javascript.info/async-await
 // Async await so it does not block animation
 async function async_await() {
   let promise = new Promise((resolve, reject) => {
-    setTimeout(() => resolve("done!"), duration)
+    setTimeout(() => resolve("done!"), duration*1.5)
   });
 
   let result = await promise; // wait till the promise resolves (*)
   return result
+}
+
+function reset() {
+    timer = Date.now() + 5000;
+    score = 0;
+    $("#score").html("Score: " + score);
+    run();
+    console.log(score);
+}
+
+function updateTimer(){
+    let time_left = Math.round((timer - Date.now())/1000);
+    $("#timer").html("Time: " + time_left);
+    if(time_left <= 0) {
+        reset();
+    }
 }
 
 function createDeadAnimation() {
@@ -41,7 +60,7 @@ function createDeadAnimation() {
                             { x : 0 },
                             { x : - Math.PI  },
                     ],
-                    target:robot_idle.rotation
+                    target:robot.rotation
                 },
                 { 
                     keys:[0,  1], 
@@ -49,7 +68,7 @@ function createDeadAnimation() {
                             { y : -4.02 },
                             { y : 7},
                     ],
-                    target:robot_idle.position
+                    target:robot.position
                 },
 
             ],
@@ -58,9 +77,30 @@ function createDeadAnimation() {
     });
     animator.start();
     async_await().then(function() {
-        scene.remove(robot_idle);
+        scene.remove(robot);
 
     }); 
+}
+
+function createIdleAnimation() {
+    let animator2 = new KF.KeyFrameAnimator;
+    animator2.init({ 
+        interps:
+            [
+                { 
+                    keys:[0, 0.5, 1], 
+                    values:[
+                            { y : -20 },
+                            { y : 0},
+                            { y : -20},
+                    ],
+                    target:robot.position
+                },
+            ],
+        loop: true,
+        duration:duration*2
+    });
+        animator2.start();
 }
 
 function loadFBX() {
@@ -74,40 +114,42 @@ function loadFBX() {
                 child.receiveShadow = true;
             }
         } );
-        robot_idle = object;
-        scene.add(robot_idle);
+        robot = object;
+
+        scene.add(robot);
+        createIdleAnimation();
         
         robot_mixer["attack"] = new THREE.AnimationMixer( scene );
-        robot_mixer["attack"].clipAction( object.animations[ 0 ], robot_idle ).play();
+        robot_mixer["attack"].clipAction(object.animations[ 0 ], robot ).play();
     } );
 
 }
 
 function animate() {
 
-    var now = Date.now();
-    var deltat = now - currentTime;
+    now = Date.now();
+    let deltat = now - currentTime;
     currentTime = now;
 
-    if(robot_idle && robot_mixer[animation])
-    {
+    if(robot && robot_mixer[animation]) {
         robot_mixer[animation].update(deltat * 0.001);
+        KF.update();
     }
 
-    if(animation =="dead")
-    {
+    if(animation =="dead") {
         KF.update();
     }
 }
 
 function run() {
     requestAnimationFrame(function() { run(); });
-        // Render the scene
-        renderer.render( scene, camera );
 
-        // Spin the cube for next frame
-        animate();
+    // Render the scene
+    renderer.render( scene, camera );
 
+    // Spin the cube for next frame
+    animate();
+    updateTimer();
 }
 
 function setLightColor(light, r, g, b) {
@@ -118,14 +160,10 @@ function setLightColor(light, r, g, b) {
     light.color.setRGB(r, g, b);
 }
 
-var directionalLight = null;
-var spotLight = null;
-var ambientLight = null;
-var mapUrl = "../images/checker_large.gif";
 
-var SHADOW_MAP_WIDTH = 2048, SHADOW_MAP_HEIGHT = 2048;
 
-function createScene(canvas) {
+function createScene(c) {
+    canvas = c;
     
     // Create the Three.js renderer and attach it to our canvas
     renderer = new THREE.WebGLRenderer( { canvas: canvas, antialias: true } );
@@ -142,16 +180,15 @@ function createScene(canvas) {
     scene = new THREE.Scene();
 
     // Add  a camera so we can view the scene
-    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
+    camera = new THREE.PerspectiveCamera( 70, canvas.width / canvas.height, 1, 10000 );
     camera.position.set(0, 50, 40);
     camera.rotation.set(-Math.PI/3, 0, 0);
     scene.add(camera);
-    console.log(camera)
 
     // Create a group to hold all the objects
     root = new THREE.Object3D;
     
-    spotLight = new THREE.SpotLight (0xffffff);
+    var spotLight = new THREE.SpotLight (0xffffff);
     spotLight.position.set(0, 50, 40);
     spotLight.target.position.set(-2, 0, -2);
     root.add(spotLight);
@@ -165,14 +202,14 @@ function createScene(canvas) {
     spotLight.shadow.mapSize.width = SHADOW_MAP_WIDTH;
     spotLight.shadow.mapSize.height = SHADOW_MAP_HEIGHT;
 
-    ambientLight = new THREE.AmbientLight ( 0x888888 );
+    var ambientLight = new THREE.AmbientLight ( 0x888888 );
     root.add(ambientLight);
     
     // Create the objects
     loadFBX();
 
     // Create a group to hold the objects
-    group = new THREE.Object3D;
+    var group = new THREE.Object3D;
     root.add(group);
 
     // Create a texture map
@@ -196,7 +233,7 @@ function createScene(canvas) {
 
     raycaster = new THREE.Raycaster();
     document.addEventListener('mousedown', onDocumentMouseDown);
-    
+    reset();
     // Now add the group to our scene
     scene.add(root);
 }
@@ -205,13 +242,12 @@ function createScene(canvas) {
 function onDocumentMouseDown(event) {
     event.preventDefault();
     event.preventDefault();
-    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-    mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+    mouse.x = ( event.clientX / canvas.width ) * 2 - 1;
+    mouse.y = - ( event.clientY / canvas.height ) * 2 + 1;
 
     // find intersections
     raycaster.setFromCamera(mouse, camera);
     var intersects = raycaster.intersectObjects(scene.children, true);
-    console.log(intersects)
     if ( intersects.length > 0 ) {
         CLICKED = intersects[ 0 ].object;
         if(CLICKED.name === "Robot1") {
