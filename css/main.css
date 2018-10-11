@@ -25,6 +25,7 @@ body {
 	top:20px;
 	color: #8f8829;
 	background-color: black;
+	visibility: hidden;
 }
 
 #timer {
@@ -33,4 +34,27 @@ body {
 	top:20px;
 	color: #8f8829;
 	background-color: black;
+	visibility: hidden;
 }
+
+#reset {
+	position:absolute;
+	left:400px;
+	top:20px;
+	visibility: hidden;
+}
+
+#play {
+	position:absolute;
+	left:300px;
+	top:200px;
+	background-color: #4CAF50; /* Green */
+    border: none;
+    color: white;
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 128px;
+}
+
